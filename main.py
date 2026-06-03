@@ -82,15 +82,15 @@ def predict(data: BiayaInput):
         if data.Actual_CPU_Hours > data.Required_CPU_Hours and data.Required_CPU_Hours > 0:
             biaya_per_jam = data.Compute_Cost / data.Actual_CPU_Hours if data.Actual_CPU_Hours > 0 else 0
             potensi_penghematan = (data.Actual_CPU_Hours - data.Required_CPU_Hours) * biaya_per_jam
-        if data.CPU_Utilization < 35:
+        if data.CPU_Utilization < 60:
             potensi_penghematan += data.Compute_Cost * 0.3
         potensi_penghematan = round(float(np.clip(potensi_penghematan, 0, hasil * 0.5)), 2)
 
         proyeksi_estimasi_biaya = round(float(hasil * cpu_efficiency), 2)
 
-        if data.CPU_Utilization > 85:
+        if data.CPU_Utilization > 100:
             status_beban = "Kelebihan Beban"
-        elif data.CPU_Utilization < 35:
+        elif data.CPU_Utilization < 60:
             status_beban = "Kurang Dimanfaatkan"
         else:
             status_beban = "Optimal"
@@ -108,9 +108,9 @@ def predict(data: BiayaInput):
         rekomendasi = "Pertahankan arsitektur cloud Anda yang efisien."
         if data.Network_Cost > (data.Compute_Cost * 1.5) and data.Compute_Cost > 0:
             rekomendasi = "Cek anomali pada biaya jaringan."
-        elif data.CPU_Utilization < 35:
+        elif data.CPU_Utilization < 60:
             rekomendasi = "Kurangi alokasi CPU karena utilisasi rendah."
-        elif data.CPU_Utilization > 85:
+        elif data.CPU_Utilization > 100:
             rekomendasi = "Tingkatkan kapasitas CPU untuk menghindari kegagalan sistem."
         elif data.Actual_CPU_Hours > data.Required_CPU_Hours:
             rekomendasi = "Sesuaikan jam CPU aktual agar sama dengan jam required."
@@ -180,3 +180,9 @@ def get_options():
         if col in label_encoders:
             options[col] = list(label_encoders[col].classes_)
     return options
+
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
