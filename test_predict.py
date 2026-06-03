@@ -1,7 +1,13 @@
 import joblib
 import pandas as pd
 import warnings
+import sys
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 warnings.filterwarnings('ignore')
+
 
 model = joblib.load("model_prediksi_biaya.pkl")
 le = joblib.load("label_encoders.pkl")
@@ -35,12 +41,6 @@ df = pd.DataFrame([{
     "CPU_Efficiency": cpu_efficiency,
 }])
 
-print("Before encoding:")
-print(f"  shape: {df.shape}")
-print(f"  columns: {list(df.columns)}")
-print(f"  dtypes:\n{df.dtypes}")
-print()
-
 # Encode categorical columns
 categorical_cols = ["Region", "Billing_Period", "Service_Category", "Instance_Status"]
 for col in categorical_cols:
@@ -49,23 +49,30 @@ for col in categorical_cols:
         if val in le[col].classes_:
             df[col] = int(le[col].transform([val])[0])
         else:
-            print(f"  WARNING: '{val}' not in {col} classes: {list(le[col].classes_)}")
             df[col] = 0
     else:
         df[col] = 0
 
 df = df.astype(float)
-print("\nAfter encoding:")
-print(f"  shape: {df.shape}")
-print(f"  columns: {list(df.columns)}")
-print(f"  values: {df.values.tolist()}")
 
 try:
-    result = model.predict(df)
-    print(f"\nPrediction result: {result[0]}")
+    result = model.predict(df.values)[0]
 except Exception as e:
-    print(f"\nPrediction ERROR: {e}")
-    # Try with numpy array directly
-    print("Trying with numpy array...")
-    result = model.predict(df.values)
-    print(f"Prediction with .values: {result[0]}")
+    result = model.predict(df)[0]
+
+import numpy as np
+result = float(np.clip(result, 3.70, 66.33))
+formatted_cost = f"${result:.2f}"
+
+rekomendasi = "✅ Optimal"
+if data["CPU_Utilization"] < 60:
+    rekomendasi = "⚠️ Kurang Dimanfaatkan"
+elif data["CPU_Utilization"] > 100:
+    rekomendasi = "⚠️ Kelebihan Beban"
+
+print("📊 HASIL ANALISIS CLOUD FINOPS")
+print("==================================================")
+print(f"💰 Estimasi Total Cost    : {formatted_cost}")
+print(f"⚙️ Status Efisiensi CPU   : {cpu_efficiency:.2f}")
+print(f"📌 Rekomendasi Sistem     : {rekomendasi}")
+

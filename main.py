@@ -6,6 +6,10 @@ import joblib
 import numpy as np
 import pandas as pd
 import warnings
+import sys
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 
 warnings.filterwarnings('ignore')
 
@@ -133,6 +137,19 @@ def predict(data: BiayaInput):
         if data.Storage_Used_GB > 900 and data.Storage_Cost < 1:
             penalty += 4.0
         akurasi_dinamis = round(max(base_accuracy - penalty, 60.0), 2)
+
+        # Print summary to console
+        rekomendasi_simbol = "✅ Optimal"
+        if data.CPU_Utilization < 60:
+            rekomendasi_simbol = "⚠️ Kurang Dimanfaatkan"
+        elif data.CPU_Utilization > 100:
+            rekomendasi_simbol = "⚠️ Kelebihan Beban"
+
+        print("\n📊 HASIL ANALISIS CLOUD FINOPS")
+        print("==================================================")
+        print(f"💰 Estimasi Total Cost    : ${round(hasil, 2):,.2f}")
+        print(f"⚙️ Status Efisiensi CPU   : {cpu_efficiency:.2f}")
+        print(f"📌 Rekomendasi Sistem     : {rekomendasi_simbol}\n")
 
         return {
             "prediksi_biaya": round(hasil, 2),
