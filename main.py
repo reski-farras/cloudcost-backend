@@ -54,9 +54,11 @@ DATASET_STATS = {
 @app.post("/predict")
 def predict(data: BiayaInput):
     try:
-        cpu_efficiency = (data.Actual_CPU_Hours / data.Required_CPU_Hours) if data.Required_CPU_Hours > 0 else 1.0
+        # Kalkulasi CPU Efficiency
+        cpu_efficiency = (data.Actual_CPU_Hours / data.Required_CPU_Hours) if data.Required_CPU_Hours > 0 else 0.0
 
-        df = pd.DataFrame([{
+        # Susun data untuk XGBoost
+        input_data = pd.DataFrame([{
             "Storage_Used_GB": float(data.Storage_Used_GB),
             "Required_CPU_Hours": float(data.Required_CPU_Hours),
             "Actual_CPU_Hours": float(data.Actual_CPU_Hours),
@@ -65,39 +67,38 @@ def predict(data: BiayaInput):
             "Billing_Period": data.Billing_Period,
             "Service_Category": data.Service_Category,
             "Instance_Status": data.Instance_Status,
-            "CPU_Efficiency": float(cpu_efficiency),
+            "CPU_Efficiency": float(cpu_efficiency)
         }])
 
-        categorical_cols = ["Region", "Billing_Period", "Service_Category", "Instance_Status"]
-        for col in categorical_cols:
+        # Translasi Teks ke Angka (Label Encoder)
+        for col in ["Region", "Billing_Period", "Service_Category", "Instance_Status"]:
             if col in label_encoders:
                 le = label_encoders[col]
-                val = df[col].iloc[0]
-                df[col] = int(le.transform([val])[0]) if val in le.classes_ else 0
+                val = input_data[col].iloc[0]
+                input_data[col] = le.transform([val])[0] if val in le.classes_ else 0
             else:
-                df[col] = 0
+                input_data[col] = 0
 
-        df = df.astype(float)
-        hasil = model.predict(df.values)[0]
-        hasil = float(np.clip(hasil, 3.70, 66.33))
+        # Tembak Model
+        hasil = model.predict(input_data)[0]
+        hasil = float(hasil)
 
-        # Analisis tambahan
-        potensi_penghematan = 0.0
-        if data.Actual_CPU_Hours > data.Required_CPU_Hours and data.Required_CPU_Hours > 0:
-            biaya_per_jam = data.Compute_Cost / data.Actual_CPU_Hours if data.Actual_CPU_Hours > 0 else 0
-            potensi_penghematan = (data.Actual_CPU_Hours - data.Required_CPU_Hours) * biaya_per_jam
-        if data.CPU_Utilization < 60:
-            potensi_penghematan += data.Compute_Cost * 0.3
-        potensi_penghematan = round(float(np.clip(potensi_penghematan, 0, hasil * 0.5)), 2)
-
-        proyeksi_estimasi_biaya = round(float(hasil * cpu_efficiency), 2)
-
-        if data.CPU_Utilization > 100:
-            status_beban = "Kelebihan Beban"
-        elif data.CPU_Utilization < 60:
+        # Logika FinOps
+        if cpu_efficiency < 0.6:
             status_beban = "Kurang Dimanfaatkan"
+            rekomendasi = "⚠️ Underutilized (Overprovisioned)"
+            potensi_penghematan = hasil * 0.35
+        elif cpu_efficiency > 1.0:
+            status_beban = "Kelebihan Beban"
+            rekomendasi = "🔥 Overutilized (Butuh Upgrade / Scaling)"
+            potensi_penghematan = 0.0
         else:
             status_beban = "Optimal"
+            rekomendasi = "✅ Optimal"
+            potensi_penghematan = 0.0
+
+        potensi_penghematan = round(float(potensi_penghematan), 2)
+        proyeksi_estimasi_biaya = round(float(hasil * cpu_efficiency), 2)
 
         ada_anomali = 0
         if data.CPU_Utilization > 95:
@@ -108,16 +109,6 @@ def predict(data: BiayaInput):
             ada_anomali = 1
         elif data.Storage_Cost > (data.Storage_Used_GB * 2.0) and data.Storage_Used_GB > 0:
             ada_anomali = 1
-
-        rekomendasi = "Pertahankan arsitektur cloud Anda yang efisien."
-        if data.Network_Cost > (data.Compute_Cost * 1.5) and data.Compute_Cost > 0:
-            rekomendasi = "Cek anomali pada biaya jaringan."
-        elif data.CPU_Utilization < 60:
-            rekomendasi = "Kurangi alokasi CPU karena utilisasi rendah."
-        elif data.CPU_Utilization > 100:
-            rekomendasi = "Tingkatkan kapasitas CPU untuk menghindari kegagalan sistem."
-        elif data.Actual_CPU_Hours > data.Required_CPU_Hours:
-            rekomendasi = "Sesuaikan jam CPU aktual agar sama dengan jam required."
 
         # Akurasi dinamis
         base_accuracy = 90.19
@@ -139,17 +130,11 @@ def predict(data: BiayaInput):
         akurasi_dinamis = round(max(base_accuracy - penalty, 60.0), 2)
 
         # Print summary to console
-        rekomendasi_simbol = "✅ Optimal"
-        if data.CPU_Utilization < 60:
-            rekomendasi_simbol = "⚠️ Kurang Dimanfaatkan"
-        elif data.CPU_Utilization > 100:
-            rekomendasi_simbol = "⚠️ Kelebihan Beban"
-
         print("\n📊 HASIL ANALISIS CLOUD FINOPS")
         print("==================================================")
         print(f"💰 Estimasi Total Cost    : ${round(hasil, 2):,.2f}")
         print(f"⚙️ Status Efisiensi CPU   : {cpu_efficiency:.2f}")
-        print(f"📌 Rekomendasi Sistem     : {rekomendasi_simbol}\n")
+        print(f"📌 Rekomendasi Sistem     : {rekomendasi}\n")
 
         return {
             "prediksi_biaya": round(hasil, 2),
