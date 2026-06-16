@@ -86,15 +86,15 @@ def predict(data: BiayaInput):
         # Logika FinOps
         if cpu_efficiency < 0.6:
             status_beban = "Kurang Dimanfaatkan"
-            rekomendasi = "⚠️ Underutilized (Overprovisioned)"
+            rekomendasi = "⚠️ Underutilized (Kelebihan penyediaan)"
             potensi_penghematan = hasil * 0.35
         elif cpu_efficiency > 1.0:
             status_beban = "Kelebihan Beban"
-            rekomendasi = "🔥 Overutilized (Butuh Upgrade / Scaling)"
+            rekomendasi = "🔥 Overutilized (Perlu ditingkatkan skalanya)"
             potensi_penghematan = 0.0
         else:
             status_beban = "Optimal"
-            rekomendasi = "✅ Optimal"
+            rekomendasi = "✅ Dimanfaatkan sesuai kebutuhan secara efektif"
             potensi_penghematan = 0.0
 
         potensi_penghematan = round(float(potensi_penghematan), 2)
