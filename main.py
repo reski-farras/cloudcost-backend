@@ -44,7 +44,7 @@ class BiayaInput(BaseModel):
 
 # Range realistis dari dataset
 DATASET_STATS = {
-    "Storage_Used_GB":    {"min": 1.0,   "max": 999.0,  "mean": 500.0},
+    "Storage_Used_GB":    {"min": 1.0,   "max": 1000.0,  "mean": 500.0},
     "Required_CPU_Hours": {"min": 1.0,   "max": 744.0,  "mean": 372.0},
     "Actual_CPU_Hours":   {"min": 1.0,   "max": 744.0,  "mean": 372.0},
     "CPU_Utilization_%":  {"min": 1.0,   "max": 99.0,   "mean": 50.0},
